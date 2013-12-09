@@ -8,52 +8,81 @@ function creatememberrelationships_civicrm_alterContent(  &$content, $context, $
   if ($context=='page'){
     if ($tplName == 'CRM/Member/Page/Tab.tpl'){
       if ($object->_action==2){
-	            $marker1 = strpos($content, 'selector');    
-	            $marker = strrpos(substr($content, 0, $marker1), '<fieldset'); 
-	            $content1 = substr($content, 0, $marker);
-	            $content3 = substr($content, $marker);
-	            $memberid = $object->getVar('_id');
-	            $cid = $object->_contactId;	 
-	            $relationships = civicrm_api('Relationship', 'get', array('version' => 3, 'contact_id' => $cid));
-	            $options = '';
-	            foreach($relationships['values'] as $relationship){
-	                $options .= '<option value='.$relationship['id'].'>'.$relationship['id'].'</option>';	                
-	            }
-	            $content2 = '
-	            <script>
-	                var relationship_id = cj("#relationship_id").val();
-	                cj("#relationship_id").change(function(){
-	                  relationship_id = cj(this).val();
-	                  console.log(relationship_id);
-	                });
-	                cj("#new_mem_rel").submit(function(){
-	                  relationship_create(relationship_id);
-	                  return false;
-	                });
-	                
-	                function relationship_create(relationship_id){
+            $marker1 = strpos($content, 'end_date');          
+            $marker = strpos($content, 'is_override', $marker1);    
+	            if ($marker == 0){
+              $content1 = substr($content, 0, $marker);
+              $content3 = substr($content, $marker);
+              $memberid = $object->getVar('_id');
+              $cid = $object->_contactId;
 
-                    CRM.api("Relationship", "getSingle", {"sequential": 1, "id": relationship_id},
-                      {success: function(data) {
-                          cj.each(data, function(key, value) {console.log(key, value) });
-                        }
+              $membership = civicrm_api('Membership', 'getSingle', array('version' => 3, 'id' => $memberid));	            
+              $relationships = civicrm_api('Relationship', 'get', array('version' => 3, 'contact_id_a' => $cid));
+
+              $options = ''; 
+              $content2 = '';
+              $url = CRM_Utils_System::crmURL(array('p' => 'civicrm/ajax/rest?entity=Membership&action=create&debug=1&sequential=1&json=1'));
+
+              if ($relationships['count'] > 0 and !array_key_exists('owner_membership_id', $membership)){
+                foreach($relationships['values'] as $relationship){
+                    $related_membership = civicrm_api('Membership', 'getsingle', array('version' => 3, 'membership_contact_id' => $relationship['contact_id_b'], 'membership_type_id' => $membership['membership_type_id']));	   
+                    if (array_key_exists('id', $related_membership)){
+                      $related_name = civicrm_api('Contact', 'getSingle', array('version' => 3, 'contact_id' => $relationship['contact_id_b']));
+                      $relationship_name = civicrm_api('RelationshipType', 'getSingle', array('version' => 3, 'id' => $relationship['relationship_type_id']));	
+                      $options .= '<option value='.$related_membership['id'].'>'.$relationship_name['name_a_b']. " ". $related_name['display_name'].'</option>';	     
+                  }                 
+                }
+                $content2 .= '
+                <script type="text/javascript">
+                    var membership_id = cj("#member_id").val();
+                    var relationship_id = cj("#relationship_id").val();
+                    cj("#relationship_id").change(function(){
+                      relationship_id = cj(this).val();
+                    });
+                    cj("#new_mem_rel").submit(function(){
+
+                      if (confirm("This cannot be undone. Information will be rewritten. When you renew or save the parent membership, membership start and end dates as well as join dates will change. By default the don\'t overwrite custom fields box will be selected. Uncheck this if you want information to inherit. Are you sure you want to assign a primary membership?")){
+                          relationship_create(relationship_id, membership_id);
+                          cj(this).slideUp();      
+                          return false;                  
                       }
-                    );
-                  }
-	            </script>
-	            <form id="new_mem_rel">
-	              <select name="relationship_id" id="relationship_id">'.
-	                $options
-	              .'</select>
-	              <input type="submit" class="validate form-submit" value="Create Relationship">
-	            </form>
-	           ';
-	            $content = $content1.$content2.$content3;           
+                        else{
+                          return false;
+                        }
+                    });
+                    function relationship_create(relationship_id, membership_id){
+
+                      CRM.api("Membership", "create", {"sequential": 1, "id": membership_id, "owner_membership_id": relationship_id},
+                        {success: function(data) {
+                            cj.each(data, function(key, value) {console.log(key, value) });
+                          }
+                        }
+                      );
+                    }
+                </script>
+                <form id="new_mem_rel">
+                  <select name="relationship_id" id="relationship_id">'.
+                    $options
+                  .'</select>
+                  <input type="hidden" name="member_id" id="member_id" value='.$memberid.'>
+                  <input type="submit" class="validate form-submit" value="Create Relationship">
+                </form>
+               ';
+             }
+           $content = $content1.$content2.$content3;       
+         }      
       }
     }
   }
 }
+#function creatememberrelationships_civicrm_buildForm( $formName, &$form ){
+#  if ($form instanceof CRM_Contribute_Form_Search & $form->getVar('_action')==2){
+#  
+#  //  print_r($form->_elements);
+#  }
+#  //$form['end_date'];
 
+#}
 /**
  * Implementation of hook_civicrm_config
  */
