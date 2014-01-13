@@ -21,7 +21,6 @@ function creatememberrelationships_civicrm_alterContent(  &$content, $context, $
 
               $options = ''; 
               $content2 = '';
-              $related_mem = FALSE;
               $url = CRM_Utils_System::crmURL(array('p' => 'civicrm/ajax/rest?entity=Membership&action=create&debug=1&sequential=1&json=1'));
 
               if ($relationships['count'] > 0 and !array_key_exists('owner_membership_id', $membership)){
@@ -31,47 +30,44 @@ function creatememberrelationships_civicrm_alterContent(  &$content, $context, $
                       $related_name = civicrm_api('Contact', 'getSingle', array('version' => 3, 'contact_id' => $relationship['contact_id_b']));
                       $relationship_name = civicrm_api('RelationshipType', 'getSingle', array('version' => 3, 'id' => $relationship['relationship_type_id']));	
                       $options .= '<option value='.$related_membership['id'].'>'.$relationship_name['name_a_b']. " ". $related_name['display_name'].'</option>';	     
-                      $related_mem = TRUE;
                   }                 
                 }
-                if ($related_mem){
-                  $content2 .= '
-                  <script type="text/javascript">
-                      var membership_id = cj("#member_id").val();
-                      var relationship_id = cj("#relationship_id").val();
-                      cj("#relationship_id").change(function(){
-                        relationship_id = cj(this).val();
-                      });
-                      cj("#new_mem_rel").submit(function(){
+                $content2 .= '
+                <script type="text/javascript">
+                    var membership_id = cj("#member_id").val();
+                    var relationship_id = cj("#relationship_id").val();
+                    cj("#relationship_id").change(function(){
+                      relationship_id = cj(this).val();
+                    });
+                    cj("#new_mem_rel").submit(function(){
 
-                        if (confirm("This cannot be undone. Information will be rewritten. When you renew or save the parent membership, membership start and end dates as well as join dates will change. By default the don\'t overwrite custom fields box will be selected. Uncheck this if you want your custom data to inherit from the primary membership. Are you sure you want to assign a primary membership?")){
-                            relationship_create(relationship_id, membership_id);
-                            cj(this).slideUp();      
-                            return false;             
-                        }
-                          else{
-                            return false;
-                          }
-                      });
-                      function relationship_create(relationship_id, membership_id){
-
-                        CRM.api("Membership", "create", {"sequential": 1, "id": membership_id, "owner_membership_id": relationship_id, "owner_membership_custom_override": 1},
-                          {success: function(data) {
-                              cj.each(data, function(key, value) {console.log(key, value) });
-                            }
-                          }
-                        );
+                      if (confirm("This cannot be undone. Information will be rewritten. When you renew or save the parent membership, membership start and end dates as well as join dates will change. By default the don\'t overwrite custom fields box will be selected. Uncheck this if you want your custom data to inherit from the primary membership. Are you sure you want to assign a primary membership?")){
+                          relationship_create(relationship_id, membership_id);
+                          cj(this).slideUp();      
+                          return false;             
                       }
-                  </script>
-                  <form id="new_mem_rel">
-                    <select name="relationship_id" id="relationship_id">'.
-                      $options
-                    .'</select>
-                    <input type="hidden" name="member_id" id="member_id" value='.$memberid.'>
-                    <input type="submit" class="validate form-submit" value="Create Relationship">
-                  </form>
-                 ';
-               }
+                        else{
+                          return false;
+                        }
+                    });
+                    function relationship_create(relationship_id, membership_id){
+
+                      CRM.api("Membership", "create", {"sequential": 1, "id": membership_id, "owner_membership_id": relationship_id, "owner_membership_custom_override": 1},
+                        {success: function(data) {
+                            cj.each(data, function(key, value) {console.log(key, value) });
+                          }
+                        }
+                      );
+                    }
+                </script>
+                <form id="new_mem_rel">
+                  <select name="relationship_id" id="relationship_id">'.
+                    $options
+                  .'</select>
+                  <input type="hidden" name="member_id" id="member_id" value='.$memberid.'>
+                  <input type="submit" class="validate form-submit" value="Create Relationship">
+                </form>
+               ';
              }
            $content = $content1.$content2.$content3;       
          }      
